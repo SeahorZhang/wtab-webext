@@ -132,9 +132,9 @@ getBookmarks();
 </script>
 
 <template>
-  <div class="w-96 max-h-[600px] min-h-[300px] flex flex-col overflow-hidden">
-    <el-tree v-loading="loading" :data="bookmarks" class="px-4 flex-1 overflow-y-auto" node-key="id" show-checkbox
-      :props="treeProps" @check="handleCheck">
+  <el-scrollbar class="flex-1 mb-5">
+    <el-tree v-loading="loading" :data="bookmarks" class="px-4" node-key="id" show-checkbox :props="treeProps"
+      @check="handleCheck">
       <template #default="{ node }">
         <component :is="node.data.type === 'link' ? Earth : Folder" class="text-black flex-shrink-0"
           style="height: 1em; width: 1em" />
@@ -143,8 +143,11 @@ getBookmarks();
         </span>
       </template>
     </el-tree>
-    <el-button type="primary" round @click="handleExportBookmarks" :disabled="!checkedBookmarks.length"
-      class="!py-6">添加到
+  </el-scrollbar>
+
+  <div class="px-4">
+    <el-button class="!py-6 w-full !rounded-full" type="primary" round @click="handleExportBookmarks"
+      :disabled="!checkedBookmarks.length">添加到
       WTab
     </el-button>
   </div>
