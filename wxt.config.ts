@@ -9,18 +9,20 @@ import ElementPlus from 'unplugin-element-plus/vite'
 export default defineConfig({
   modules: ['@wxt-dev/module-vue'],
   manifest: {
-    "name": "WTab",
-    "description": "WTab看板",
+    name: "WTab",
+    description: "一个简洁、美观、实用的浏览器起始页。",
     permissions: [
       "bookmarks",
       "tabs",
-      "storage"
+      "storage",
     ],
     host_permissions: [
-      '*://*.wtab.cn/*',
-      'chrome://newtab/*',
-      'http://localhost:5173/*'
+      "*://*.wtab.cn/*",
+      "http://localhost:5173/*"
     ],
+    chrome_url_overrides: {
+      newtab: "newtab.html"
+    },
   },
   vite: () => ({
     plugins: [
