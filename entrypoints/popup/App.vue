@@ -1,7 +1,10 @@
 <script lang="ts" setup>
-import HelloWorld from '@/components/HelloWorld.vue';
+import type { TreeDataNode } from "@/types";
+import BookmarksTree from "@/components/BookmarksTree.vue";
+
+const bookmarks = ref<TreeDataNode[]>([]); // 书签数据
 </script>
 
 <template>
-  <HelloWorld msg="WTab" />
+  <BookmarksTree v-model="bookmarks" />
 </template>
