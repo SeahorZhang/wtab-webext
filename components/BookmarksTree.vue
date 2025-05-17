@@ -4,6 +4,7 @@ import { recursiveChange, transformBookmark } from "@/utils/tree";
 import type { ChangedTreeData, TreeDataNode, CheckedInfo } from "@/types";
 import { Earth, Folder } from "@/components/icons";
 import { ElMessage } from "element-plus";
+import { nanoid } from 'nanoid/non-secure'
 
 const loading = ref<boolean>(false);
 const bookmarks = shallowRef<TreeDataNode[]>([]);
@@ -16,38 +17,89 @@ const treeProps = {
   icon: "icon",
 } as const;
 
+export interface Widget {
+  id: string
+  icon: string
+  name: string
+  url: string
+}
+
+
+function waitForMessageOnce(expectedType: string): Promise<any> {
+  return new Promise((resolve) => {
+    function handler(message: any) {
+      if (message?.type === expectedType) {
+        chrome.runtime.onMessage.removeListener(handler);
+        resolve(message);
+      }
+    }
+    chrome.runtime.onMessage.addListener(handler);
+  });
+}
 /**
  * 导出书签
  */
 const handleExportBookmarks = async (): Promise<void> => {
-  // 检查当前页面是否为 chrome://newtab/
-  const isNewTab = window.location.href.startsWith('chrome://newtab/');
-  
-  if (!isNewTab) {
-    // 将数据临时存储，以便跳转后使用
-    sessionStorage.setItem('wtab_pending_bookmarks', JSON.stringify(checkedBookmarks.value));
-    
-    // 使用 Chrome API 打开新标签页
-    chrome.tabs.create({ url: 'chrome://newtab/' });
+  console.log('Export bookmarks clicked');
+
+  // 获取当前标签页信息
+  const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const isNewTab = currentTab.url === 'chrome://newtab/';
+  console.log('Is new tab:', isNewTab);
+
+  const bookmarksToSend: Widget[] = []
+  checkedBookmarks.value.forEach(item => {
+    if (!item.url) return
+    bookmarksToSend.push({
+      "icon": `https://logo.clearbit.com/${item.url}`,
+      "id": nanoid(),
+      "name": item.title || '未知',
+      "url": item.url
+    })
+  });
+  if (!bookmarksToSend.length) {
+    ElMessage.warning('无可添加书签')
+    return
+  };
+  console.log('待发送书签', bookmarksToSend)
+
+  if (isNewTab) {
+    try {
+      chrome.runtime.sendMessage({
+        type: 'SEND_TO_IFRAME',
+        payload: {
+          bookmarks: bookmarksToSend,
+        }
+      });
+
+      const { payload } = await waitForMessageOnce("FROM_WTAB_IFRAME")
+      if (payload === '保存书签失败！打开新页面后重试！') {
+        ElMessage.error(payload);
+      } else {
+        ElMessage.success(payload);
+      }
+    } catch (error) {
+      console.error('发送消息失败:', error);
+      ElMessage.error('操作失败，请重试');
+    }
     return;
   }
 
-  // 获取待添加的书签数据（可能是从其他页面跳转过来的）
-  const pendingBookmarks = sessionStorage.getItem('wtab_pending_bookmarks');
-  const bookmarksToSave = pendingBookmarks ? JSON.parse(pendingBookmarks) : checkedBookmarks.value;
-  
+
+  // 不在新标签页，保存数据并打开新标签页
   try {
-    // 保存到 localStorage
-    localStorage.setItem('wtab_bookmarks', JSON.stringify(bookmarksToSave));
-    
-    // 清除临时存储
-    sessionStorage.removeItem('wtab_pending_bookmarks');
-    
-    // 提示用户保存成功
-    ElMessage.success('书签已成功添加到 WTab');
+    // 将数据临时存储到 chrome.storage.session
+    await chrome.storage.session.set({ 'wtab_pending_bookmarks': bookmarksToSend });
+
+    // 打开新标签页
+    chrome.tabs.create({ url: 'chrome://newtab/' });
+    console.log('New tab opened');
+
+    // 提示用户
+    ElMessage.success('正在打开新标签页...');
   } catch (error) {
-    console.error('保存书签失败:', error);
-    ElMessage.error('保存书签失败，请重试');
+    console.error('操作失败:', error);
+    ElMessage.error('操作失败，请重试');
   }
 };
 
@@ -81,34 +133,19 @@ getBookmarks();
 
 <template>
   <div class="w-96 max-h-[600px] min-h-[300px] flex flex-col overflow-hidden">
-    {{ checkedBookmarks }}
-    <el-tree
-      v-loading="loading"
-      :data="bookmarks"
-      class="px-4 flex-1 overflow-y-auto"
-      node-key="id"
-      show-checkbox
-      :props="treeProps"
-      @check="handleCheck"
-    >
+    <el-tree v-loading="loading" :data="bookmarks" class="px-4 flex-1 overflow-y-auto" node-key="id" show-checkbox
+      :props="treeProps" @check="handleCheck">
       <template #default="{ node }">
-        <component
-          :is="node.data.type === 'link' ? Earth : Folder"
-          class="text-black flex-shrink-0"
-          style="height: 1em; width: 1em"
-        />
+        <component :is="node.data.type === 'link' ? Earth : Folder" class="text-black flex-shrink-0"
+          style="height: 1em; width: 1em" />
         <span :title="node.label" class="ml-0.5 text-black truncate">
           {{ node.label }}
         </span>
       </template>
     </el-tree>
-    <el-button
-      type="primary"
-      round
-      @click="handleExportBookmarks"
-      :disabled="!checkedBookmarks.length"
-      class="!py-6"
-      >添加到 WTab
+    <el-button type="primary" round @click="handleExportBookmarks" :disabled="!checkedBookmarks.length"
+      class="!py-6">添加到
+      WTab
     </el-button>
   </div>
 </template>

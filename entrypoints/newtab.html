@@ -30,8 +30,36 @@
 
   <body>
     <iframe
+      id="my-wtab"
       allow="clipboard-read; clipboard-write"
       src="https://www.wtab.cn"
     ></iframe>
   </body>
+
+  <script>
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.type === "SEND_TO_IFRAME") {
+        const iframe = document.getElementById("my-wtab");
+        iframe?.contentWindow?.postMessage(
+          {
+            type: "FOR_WTAB_IFRAME",
+            payload: message.payload,
+          },
+          "*"
+        );
+
+        window.addEventListener(
+          "message",
+          (event) => {
+            if (event.data?.type !== "FROM_WTAB_IFRAME") return;
+            chrome.runtime.sendMessage({
+              type: "FROM_WTAB_IFRAME",
+              payload: event.data.payload,
+            });
+          },
+          { once: true }
+        );
+      }
+    });
+  </script>
 </html>

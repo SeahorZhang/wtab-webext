@@ -1,4 +1,4 @@
-import { defineConfig, WxtViteConfig, ConfigEnv } from 'wxt';
+import { defineConfig } from 'wxt';
 import tailwindcss from '@tailwindcss/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
@@ -13,14 +13,20 @@ export default defineConfig({
     "description": "WTab看板",
     permissions: [
       "bookmarks",
-      "tabs"
+      "tabs",
+      "storage"
     ],
-    host_permissions: ['*://*.wtab.cn/*'],
+    host_permissions: [
+      '*://*.wtab.cn/*',
+      'chrome://newtab/*',
+      'http://localhost:5173/*'
+    ],
   },
   vite: () => ({
     plugins: [
       tailwindcss(),
       AutoImport({
+        imports: ['vue'],
         resolvers: [ElementPlusResolver()],
       }),
       Components({
